@@ -5,7 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import com.example.fitness_demo.ui.theme.Fitness_DemoTheme
-import com.example.fitness_demo.ui.navigation.FitnessNavGraph
+import com.example.fitness_demo.ui.FitnessAppRoot
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -14,7 +14,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             Fitness_DemoTheme {
                 val app = application as FitnessApp
-                FitnessNavGraph(repository = app.container.repository)
+                FitnessAppRoot(repository = app.container.repository)
             }
         }
     }

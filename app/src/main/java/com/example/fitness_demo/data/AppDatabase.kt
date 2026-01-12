@@ -9,7 +9,7 @@ import androidx.room.RoomDatabase
         TrainingSession::class,
         SetEntry::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

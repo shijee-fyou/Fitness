@@ -1,0 +1,93 @@
+package com.example.fitness_demo.data
+
+object SeedData {
+    val defaultExercises: List<Exercise> = listOf(
+        // Chest
+        Exercise(name = "Bench Press", muscleGroup = "Chest", description = "Barbell flat bench press"),
+        Exercise(name = "Incline Bench Press", muscleGroup = "Chest"),
+        Exercise(name = "Decline Bench Press", muscleGroup = "Chest"),
+        Exercise(name = "Dumbbell Bench Press", muscleGroup = "Chest"),
+        Exercise(name = "Dumbbell Incline Press", muscleGroup = "Chest"),
+        Exercise(name = "Chest Fly (Machine)", muscleGroup = "Chest"),
+        Exercise(name = "Cable Crossover", muscleGroup = "Chest"),
+        Exercise(name = "Push Up", muscleGroup = "Chest"),
+        Exercise(name = "Weighted Push Up", muscleGroup = "Chest"),
+        Exercise(name = "Chest Dip", muscleGroup = "Chest"),
+        // Back
+        Exercise(name = "Deadlift", muscleGroup = "Back"),
+        Exercise(name = "Barbell Row", muscleGroup = "Back"),
+        Exercise(name = "Pendlay Row", muscleGroup = "Back"),
+        Exercise(name = "T-Bar Row", muscleGroup = "Back"),
+        Exercise(name = "One-Arm Dumbbell Row", muscleGroup = "Back"),
+        Exercise(name = "Lat Pulldown", muscleGroup = "Back"),
+        Exercise(name = "Pull Up", muscleGroup = "Back"),
+        Exercise(name = "Chin Up", muscleGroup = "Back"),
+        Exercise(name = "Seated Cable Row", muscleGroup = "Back"),
+        Exercise(name = "Face Pull", muscleGroup = "Back"),
+        Exercise(name = "Back Extension", muscleGroup = "Back"),
+        // Legs (Quads/Hamstrings/Glutes)
+        Exercise(name = "Back Squat", muscleGroup = "Legs"),
+        Exercise(name = "Front Squat", muscleGroup = "Legs"),
+        Exercise(name = "High-Bar Squat", muscleGroup = "Legs"),
+        Exercise(name = "Low-Bar Squat", muscleGroup = "Legs"),
+        Exercise(name = "Leg Press", muscleGroup = "Legs"),
+        Exercise(name = "Bulgarian Split Squat", muscleGroup = "Legs"),
+        Exercise(name = "Lunge", muscleGroup = "Legs"),
+        Exercise(name = "Romanian Deadlift", muscleGroup = "Legs"),
+        Exercise(name = "Stiff-Leg Deadlift", muscleGroup = "Legs"),
+        Exercise(name = "Good Morning", muscleGroup = "Legs"),
+        Exercise(name = "Leg Extension", muscleGroup = "Legs"),
+        Exercise(name = "Leg Curl", muscleGroup = "Legs"),
+        Exercise(name = "Hip Thrust", muscleGroup = "Legs"),
+        Exercise(name = "Glute Bridge", muscleGroup = "Legs"),
+        // Shoulders
+        Exercise(name = "Overhead Press", muscleGroup = "Shoulders"),
+        Exercise(name = "Seated Barbell Press", muscleGroup = "Shoulders"),
+        Exercise(name = "Dumbbell Shoulder Press", muscleGroup = "Shoulders"),
+        Exercise(name = "Arnold Press", muscleGroup = "Shoulders"),
+        Exercise(name = "Lateral Raise", muscleGroup = "Shoulders"),
+        Exercise(name = "Cable Lateral Raise", muscleGroup = "Shoulders"),
+        Exercise(name = "Rear Delt Fly", muscleGroup = "Shoulders"),
+        Exercise(name = "Reverse Pec Deck", muscleGroup = "Shoulders"),
+        Exercise(name = "Upright Row", muscleGroup = "Shoulders"),
+        // Arms (Biceps/Triceps/Forearms)
+        Exercise(name = "Barbell Curl", muscleGroup = "Arms"),
+        Exercise(name = "EZ-Bar Curl", muscleGroup = "Arms"),
+        Exercise(name = "Dumbbell Curl", muscleGroup = "Arms"),
+        Exercise(name = "Incline Dumbbell Curl", muscleGroup = "Arms"),
+        Exercise(name = "Hammer Curl", muscleGroup = "Arms"),
+        Exercise(name = "Concentration Curl", muscleGroup = "Arms"),
+        Exercise(name = "Preacher Curl", muscleGroup = "Arms"),
+        Exercise(name = "Tricep Pushdown", muscleGroup = "Arms"),
+        Exercise(name = "Overhead Tricep Extension", muscleGroup = "Arms"),
+        Exercise(name = "Skull Crusher", muscleGroup = "Arms"),
+        Exercise(name = "Close-Grip Bench Press", muscleGroup = "Arms"),
+        Exercise(name = "Dips (Triceps)", muscleGroup = "Arms"),
+        Exercise(name = "Wrist Curl", muscleGroup = "Arms"),
+        Exercise(name = "Reverse Wrist Curl", muscleGroup = "Arms"),
+        // Core
+        Exercise(name = "Plank", muscleGroup = "Core"),
+        Exercise(name = "Side Plank", muscleGroup = "Core"),
+        Exercise(name = "Crunch", muscleGroup = "Core"),
+        Exercise(name = "Cable Crunch", muscleGroup = "Core"),
+        Exercise(name = "Hanging Leg Raise", muscleGroup = "Core"),
+        Exercise(name = "Captain's Chair", muscleGroup = "Core"),
+        Exercise(name = "Ab Wheel Rollout", muscleGroup = "Core"),
+        Exercise(name = "Cable Woodchop", muscleGroup = "Core"),
+        Exercise(name = "Russian Twist", muscleGroup = "Core"),
+        // Calves
+        Exercise(name = "Standing Calf Raise", muscleGroup = "Legs"),
+        Exercise(name = "Seated Calf Raise", muscleGroup = "Legs"),
+        // Traps
+        Exercise(name = "Barbell Shrug", muscleGroup = "Back"),
+        Exercise(name = "Dumbbell Shrug", muscleGroup = "Back"),
+        // Full Body / Conditioning
+        Exercise(name = "Clean and Press", muscleGroup = "Full Body"),
+        Exercise(name = "Clean and Jerk", muscleGroup = "Full Body"),
+        Exercise(name = "Snatch", muscleGroup = "Full Body"),
+        Exercise(name = "Kettlebell Swing", muscleGroup = "Full Body"),
+        Exercise(name = "Burpee", muscleGroup = "Full Body"),
+        Exercise(name = "Farmer's Walk", muscleGroup = "Full Body")
+    )
+}
+

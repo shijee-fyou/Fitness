@@ -16,11 +16,17 @@ interface ExerciseDao {
     @Query("SELECT * FROM exercises ORDER BY name")
     fun getAll(): Flow<List<Exercise>>
 
+    @Query("SELECT * FROM exercises WHERE muscleGroup = :group ORDER BY name")
+    fun getByMuscleGroup(group: String): Flow<List<Exercise>>
+
     @Query("SELECT * FROM exercises WHERE id = :id LIMIT 1")
     suspend fun getById(id: Int): Exercise?
 
     @Query("SELECT * FROM exercises WHERE name = :name LIMIT 1")
     suspend fun getByName(name: String): Exercise?
+
+    @Query("SELECT COUNT(*) FROM exercises")
+    suspend fun countAll(): Int
 
     @Delete
     suspend fun delete(exercise: Exercise)
@@ -54,5 +60,8 @@ interface SetEntryDao {
 
     @Query("DELETE FROM sets WHERE sessionId = :sessionId")
     suspend fun deleteForSession(sessionId: Int)
+
+    @Query("DELETE FROM sets WHERE id = :id")
+    suspend fun deleteById(id: Int)
 }
 

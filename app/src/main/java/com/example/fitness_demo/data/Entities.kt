@@ -11,7 +11,9 @@ import androidx.room.PrimaryKey
 )
 data class Exercise(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
-    val name: String
+    val name: String,
+    val muscleGroup: String,
+    val description: String? = null
 )
 
 @Entity(tableName = "sessions")

@@ -9,13 +9,15 @@ class AppRepository(
 ) {
     // Exercises
     fun observeExercises(): Flow<List<Exercise>> = exerciseDao.getAll()
+    fun observeExercisesByMuscle(group: String): Flow<List<Exercise>> = exerciseDao.getByMuscleGroup(group)
 
-    suspend fun ensureExerciseByName(name: String): Exercise {
+    suspend fun ensureExerciseByName(name: String, muscleGroup: String = "Other", description: String? = null): Exercise {
         val existing = exerciseDao.getByName(name)
         if (existing != null) return existing
-        val id = exerciseDao.insert(Exercise(name = name)).toInt()
-        return exerciseDao.getById(id) ?: Exercise(id = id, name = name)
+        val id = exerciseDao.insert(Exercise(name = name, muscleGroup = muscleGroup, description = description)).toInt()
+        return exerciseDao.getById(id) ?: Exercise(id = id, name = name, muscleGroup = muscleGroup, description = description)
     }
+    suspend fun getExerciseById(id: Int): Exercise? = exerciseDao.getById(id)
 
     // Sessions
     fun observeSessions(): Flow<List<TrainingSession>> = sessionDao.getAll()
@@ -28,6 +30,17 @@ class AppRepository(
     }
 
     suspend fun getSessionById(id: Int): TrainingSession? = sessionDao.getById(id)
+    suspend fun deleteSessionById(id: Int) {
+        val s = sessionDao.getById(id) ?: return
+        sessionDao.delete(s)
+        // SetEntry rows are deleted via CASCADE
+    }
+    suspend fun recreateSession(session: TrainingSession): TrainingSession {
+        val newId = sessionDao.insert(
+            TrainingSession(startTimeMillis = session.startTimeMillis, note = session.note)
+        ).toInt()
+        return sessionDao.getById(newId) ?: TrainingSession(id = newId, startTimeMillis = session.startTimeMillis, note = session.note)
+    }
 
     // Sets
     fun observeSetsForSession(sessionId: Int): Flow<List<SetEntry>> = setDao.getForSession(sessionId)
@@ -56,6 +69,19 @@ class AppRepository(
             reps = reps,
             weightKg = weightKg
         )
+    }
+
+    suspend fun deleteSet(id: Int) {
+        setDao.deleteById(id)
+    }
+
+    suspend fun seedIfEmpty(defaults: List<Exercise>) {
+        if (exerciseDao.countAll() > 0) return
+        defaults.forEach { ex -> exerciseDao.insert(ex) }
+    }
+
+    suspend fun seedDefaultsEnsure(defaults: List<Exercise>) {
+        defaults.forEach { ex -> ensureExerciseByName(ex.name, ex.muscleGroup, ex.description) }
     }
 }
 

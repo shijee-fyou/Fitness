@@ -10,8 +10,11 @@ import androidx.navigation.compose.rememberNavController
 import com.example.fitness_demo.data.AppRepository
 import com.example.fitness_demo.ui.screens.HistoryScreen
 import com.example.fitness_demo.ui.screens.HomeScreen
+import com.example.fitness_demo.ui.screens.ExercisesScreen
+import com.example.fitness_demo.ui.screens.SettingsScreen
 import com.example.fitness_demo.ui.screens.SessionDetailScreen
 import com.example.fitness_demo.ui.screens.StartSessionScreen
+import com.example.fitness_demo.ui.screens.ExerciseDetailScreen
 
 @Composable
 fun FitnessNavGraph(
@@ -59,6 +62,28 @@ fun FitnessNavGraph(
                     navController.navigate("${Destinations.SESSION_DETAIL}/$sessionId")
                 }
             )
+        }
+        composable(Destinations.EXERCISES) {
+            ExercisesScreen(
+                repository = repository,
+                onBack = { navController.popBackStack() },
+                onOpenExercise = { exId ->
+                    navController.navigate("${Destinations.EXERCISE_DETAIL}/$exId")
+                }
+            )
+        }
+        composable(Destinations.SETTINGS) {
+            SettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable("${Destinations.EXERCISE_DETAIL}/{exerciseId}") { backStackEntry ->
+            val exerciseId = backStackEntry.arguments?.getString("exerciseId")?.toIntOrNull()
+            if (exerciseId != null) {
+                ExerciseDetailScreen(
+                    exerciseId = exerciseId,
+                    repository = repository,
+                    onBack = { navController.popBackStack() }
+                )
+            }
         }
     }
 }
