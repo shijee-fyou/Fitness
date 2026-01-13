@@ -20,7 +20,9 @@ data class Exercise(
 data class TrainingSession(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val startTimeMillis: Long,
-    val note: String? = null
+    val note: String? = null,
+    val endTimeMillis: Long? = null, // Added
+    val theme: String? = null // Added
 )
 
 @Entity(
@@ -47,6 +49,7 @@ data class SetEntry(
     val exerciseId: Int,
     val setNumber: Int,
     val reps: Int,
-    val weightKg: Float?
+    val weightKg: Float?,
+    val rpe: Float? = null
 )
 

@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.PlayArrow
-import androidx.compose.material3.Button
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
@@ -46,22 +45,26 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(Dimens.SectionSpacing),
         horizontalAlignment = Alignment.Start
     ) {
-        Text(
-            text = "开始你的训练",
-            style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.SemiBold)
-        )
-        Text(
-            text = "记录每一次进步，保持持续增肌与减脂。",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = "开始你的训练",
+                style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.SemiBold)
+            )
+            Text(
+                text = "记录每一次进步，保持持续增肌与减脂。",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        // 已按你的要求移除“本周训练环”功能
 
         Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             AnimatedVisibility(visible = show, enter = fadeIn() + slideInVertically(initialOffsetY = { it / 6 })) {
                 ElevatedCard(
                     onClick = onStartSessionClick,
                     modifier = Modifier.fillMaxWidth().height(120.dp),
-                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = Dimens.CardElevationMed)
+                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = Dimens.CardElevationLow)
                 ) {
                     Row(
                         modifier = Modifier.padding(Dimens.CardPadding),
@@ -80,7 +83,7 @@ fun HomeScreen(
                 ElevatedCard(
                     onClick = onHistoryClick,
                     modifier = Modifier.fillMaxWidth().height(120.dp),
-                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = Dimens.CardElevationMed)
+                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = Dimens.CardElevationLow)
                 ) {
                     Row(
                         modifier = Modifier.padding(Dimens.CardPadding),

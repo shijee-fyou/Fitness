@@ -3,6 +3,7 @@ package com.example.fitness_demo.ui.screens
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -35,8 +36,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun StartSessionScreen(
     repository: AppRepository,
@@ -79,13 +81,21 @@ fun StartSessionScreen(
                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = com.example.fitness_demo.ui.theme.Dimens.CardElevationMed),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Column(modifier = Modifier.padding(com.example.fitness_demo.ui.theme.Dimens.CardPadding), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(
+                    modifier = Modifier.padding(com.example.fitness_demo.ui.theme.Dimens.CardPadding),
+                    verticalArrangement = Arrangement.spacedBy(com.example.fitness_demo.ui.theme.Dimens.ChipSpacing)
+                ) {
                     Text("选择目标肌群（可选）")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(com.example.fitness_demo.ui.theme.Dimens.ChipSpacing),
+                        verticalArrangement = Arrangement.spacedBy(com.example.fitness_demo.ui.theme.Dimens.ChipSpacing)
+                    ) {
                         groups.forEach { g ->
-                            FilterChip(selected = selectedGroup == g, onClick = {
-                                selectedGroup = if (selectedGroup == g) null else g
-                            }, label = { Text(g) })
+                            FilterChip(
+                                selected = selectedGroup == g,
+                                onClick = { selectedGroup = if (selectedGroup == g) null else g },
+                                label = { Text(groupLabel(g)) }
+                            )
                         }
                     }
                     OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text("备注（可选）") }, modifier = Modifier.fillMaxWidth())
@@ -104,7 +114,7 @@ fun StartSessionScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.fillMaxWidth()) {
                 ElevatedCard(onClick = {
                     scope.launch {
-                        val session = repository.startNewSession(note = "Push/Pull/Legs - ${selectedGroup ?: "General"}")
+                        val session = repository.startNewSession(note = "推/拉/腿 - ${selectedGroup?.let { groupLabel(it) } ?: "通用"}")
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         onSessionStarted(session.id)
                     }
@@ -113,7 +123,7 @@ fun StartSessionScreen(
                 }
                 ElevatedCard(onClick = {
                     scope.launch {
-                        val session = repository.startNewSession(note = "Full Body - ${selectedGroup ?: "General"}")
+                        val session = repository.startNewSession(note = "全身 - ${selectedGroup?.let { groupLabel(it) } ?: "通用"}")
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                         onSessionStarted(session.id)
                     }
@@ -125,3 +135,16 @@ fun StartSessionScreen(
     }
 }
 
+private fun groupLabel(en: String): String = when (en.lowercase()) {
+    "all" -> "全部"
+    "chest" -> "胸部"
+    "back" -> "背部"
+    "legs" -> "腿部"
+    "shoulders" -> "肩部"
+    "arms" -> "手臂"
+    "core" -> "核心"
+    "full body" -> "全身"
+    "other" -> "其它"
+    "general" -> "通用"
+    else -> en
+}

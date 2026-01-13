@@ -35,7 +35,7 @@ fun FitnessAppRoot(
     val items = listOf(
         BottomItem(Destinations.HOME, "训练", { Icon(Icons.Default.FitnessCenter, contentDescription = null) }),
         BottomItem(Destinations.HISTORY, "记录", { Icon(Icons.Default.History, contentDescription = null) }),
-        BottomItem(Destinations.EXERCISES, "练习", { Icon(Icons.Default.List, contentDescription = null) }),
+        BottomItem(Destinations.EXERCISES, "训练", { Icon(Icons.Default.List, contentDescription = null) }),
         BottomItem(Destinations.SETTINGS, "设置", { Icon(Icons.Default.Settings, contentDescription = null) })
     )
 

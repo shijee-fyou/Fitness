@@ -53,6 +53,7 @@ import com.example.fitness_demo.ui.theme.Dimens
 import com.example.fitness_demo.data.AppRepository
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.fitness_demo.ui.viewmodel.ExercisesViewModel
+import com.example.fitness_demo.ui.util.Localization
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
@@ -144,7 +145,7 @@ fun ExercisesScreen(
                     FilterChip(
                         selected = selectedGroup == g,
                         onClick = { vm.selectGroup(g) },
-                        label = { Text(g) }
+                        label = { Text(groupLabel(g)) }
                     )
                 }
             }
@@ -174,7 +175,7 @@ fun ExercisesScreen(
                         Column(modifier = Modifier.padding(Dimens.CardPadding), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 Text(
-                                    ex.name,
+                                    Localization.exercise(ex.name),
                                     style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis
@@ -203,18 +204,27 @@ fun ExercisesScreen(
 private fun difficultyFor(name: String): String {
     val n = name.lowercase()
     return when {
-        listOf("snatch", "clean and jerk", "clean and press").any { it in n } -> "Hard"
-        listOf("deadlift", "squat", "bench", "overhead press").any { it in n } -> "Hard"
-        listOf("row", "pulldown", "pull up", "chin up", "hip thrust").any { it in n } -> "Medium"
-        listOf("curl", "raise", "plank", "crunch", "extension", "pressdown").any { it in n } -> "Easy"
-        else -> "Medium"
+        listOf("snatch", "clean and jerk", "clean and press").any { it in n } -> "难"
+        listOf("deadlift", "squat", "bench", "overhead press").any { it in n } -> "难"
+        listOf("row", "pulldown", "pull up", "chin up", "hip thrust").any { it in n } -> "中"
+        listOf("curl", "raise", "plank", "crunch", "extension", "pressdown").any { it in n } -> "易"
+        else -> "中"
     }
 }
 
-private fun abbreviateGroup(group: String): String = when (group.lowercase()) {
-    "shoulders" -> "Shldr"
-    "full body" -> "Full"
-    else -> group
+private fun abbreviateGroup(group: String): String = groupLabel(group)
+
+private fun groupLabel(en: String): String = when (en.lowercase()) {
+    "all" -> "全部"
+    "chest" -> "胸部"
+    "back" -> "背部"
+    "legs" -> "腿部"
+    "shoulders" -> "肩部"
+    "arms" -> "手臂"
+    "core" -> "核心"
+    "full body" -> "全身"
+    "other" -> "其它"
+    else -> en
 }
 
 @Composable

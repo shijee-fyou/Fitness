@@ -55,7 +55,11 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation("androidx.compose.foundation:foundation") // base foundation
+    implementation("androidx.compose.foundation:foundation-layout") // FlowRow, matchParentSize 等布局扩展
+    implementation("androidx.compose.ui:ui-text") // for KeyboardOptions/KeyboardType
     implementation(libs.androidx.compose.material3)
+    implementation("androidx.compose.material:material") // SwipeToDismiss
     implementation("androidx.compose.animation:animation")
     implementation("androidx.compose.material:material-icons-extended")
     implementation(libs.androidx.navigation.compose)

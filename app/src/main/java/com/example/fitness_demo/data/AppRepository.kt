@@ -37,20 +37,23 @@ class AppRepository(
     }
     suspend fun recreateSession(session: TrainingSession): TrainingSession {
         val newId = sessionDao.insert(
-            TrainingSession(startTimeMillis = session.startTimeMillis, note = session.note)
+            TrainingSession(startTimeMillis = session.startTimeMillis, note = session.note, endTimeMillis = session.endTimeMillis, theme = session.theme)
         ).toInt()
-        return sessionDao.getById(newId) ?: TrainingSession(id = newId, startTimeMillis = session.startTimeMillis, note = session.note)
+        return sessionDao.getById(newId) ?: TrainingSession(id = newId, startTimeMillis = session.startTimeMillis, note = session.note, endTimeMillis = session.endTimeMillis, theme = session.theme)
     }
 
     // Sets
     fun observeSetsForSession(sessionId: Int): Flow<List<SetEntry>> = setDao.getForSession(sessionId)
+
+    suspend fun getSetsForSessionOnce(sessionId: Int): List<SetEntry> = setDao.getForSessionOnce(sessionId)
 
     suspend fun addSet(
         sessionId: Int,
         exerciseId: Int,
         setNumber: Int,
         reps: Int,
-        weightKg: Float?
+        weightKg: Float?,
+        rpe: Float? = null
     ): SetEntry {
         val id = setDao.insert(
             SetEntry(
@@ -58,7 +61,8 @@ class AppRepository(
                 exerciseId = exerciseId,
                 setNumber = setNumber,
                 reps = reps,
-                weightKg = weightKg
+                weightKg = weightKg,
+                rpe = rpe
             )
         ).toInt()
         return SetEntry(
@@ -67,13 +71,20 @@ class AppRepository(
             exerciseId = exerciseId,
             setNumber = setNumber,
             reps = reps,
-            weightKg = weightKg
+            weightKg = weightKg,
+            rpe = rpe
         )
     }
 
     suspend fun deleteSet(id: Int) {
+        val toDelete = setDao.getById(id) ?: return
         setDao.deleteById(id)
+        // 确保后续组号前移，避免出现空洞
+        setDao.decrementSetNumbersFrom(toDelete.sessionId, toDelete.setNumber)
     }
+
+    suspend fun getLastSetsForExercise(exerciseId: Int, limit: Int = 10): List<SetEntry> =
+        setDao.getLastSetsForExercise(exerciseId, limit)
 
     suspend fun seedIfEmpty(defaults: List<Exercise>) {
         if (exerciseDao.countAll() > 0) return
@@ -82,6 +93,13 @@ class AppRepository(
 
     suspend fun seedDefaultsEnsure(defaults: List<Exercise>) {
         defaults.forEach { ex -> ensureExerciseByName(ex.name, ex.muscleGroup, ex.description) }
+    }
+
+    // Complete session
+    suspend fun completeSession(sessionId: Int, theme: String?) {
+        val s = sessionDao.getById(sessionId) ?: return
+        val updated = s.copy(endTimeMillis = System.currentTimeMillis(), theme = theme)
+        sessionDao.update(updated)
     }
 }
 

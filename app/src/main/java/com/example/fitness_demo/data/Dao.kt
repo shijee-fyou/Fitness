@@ -43,6 +43,9 @@ interface TrainingSessionDao {
     @Query("SELECT * FROM sessions WHERE id = :id LIMIT 1")
     suspend fun getById(id: Int): TrainingSession?
 
+    @Update
+    suspend fun update(session: TrainingSession)
+
     @Delete
     suspend fun delete(session: TrainingSession)
 }
@@ -55,13 +58,26 @@ interface SetEntryDao {
     @Update
     suspend fun update(setEntry: SetEntry)
 
+    @Query("SELECT * FROM sets WHERE id = :id LIMIT 1")
+    suspend fun getById(id: Int): SetEntry?
+
     @Query("SELECT * FROM sets WHERE sessionId = :sessionId ORDER BY setNumber ASC, id ASC")
     fun getForSession(sessionId: Int): Flow<List<SetEntry>>
+
+    @Query("SELECT * FROM sets WHERE sessionId = :sessionId ORDER BY setNumber ASC, id ASC")
+    suspend fun getForSessionOnce(sessionId: Int): List<SetEntry>
 
     @Query("DELETE FROM sets WHERE sessionId = :sessionId")
     suspend fun deleteForSession(sessionId: Int)
 
     @Query("DELETE FROM sets WHERE id = :id")
     suspend fun deleteById(id: Int)
+
+    // 将被删除组之后的所有组号减一，保证连续
+    @Query("UPDATE sets SET setNumber = setNumber - 1 WHERE sessionId = :sessionId AND setNumber > :fromNumber")
+    suspend fun decrementSetNumbersFrom(sessionId: Int, fromNumber: Int)
+
+    @Query("SELECT * FROM sets WHERE exerciseId = :exerciseId ORDER BY id DESC LIMIT :limit")
+    suspend fun getLastSetsForExercise(exerciseId: Int, limit: Int): List<SetEntry>
 }
 
