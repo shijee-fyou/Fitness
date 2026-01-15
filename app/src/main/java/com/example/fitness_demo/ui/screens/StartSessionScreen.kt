@@ -37,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import com.example.fitness_demo.ui.components.GradientPrimaryButton
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
@@ -85,7 +86,7 @@ fun StartSessionScreen(
                     modifier = Modifier.padding(com.example.fitness_demo.ui.theme.Dimens.CardPadding),
                     verticalArrangement = Arrangement.spacedBy(com.example.fitness_demo.ui.theme.Dimens.ChipSpacing)
                 ) {
-                    Text("选择目标肌群（可选）")
+                    Text("选择目标肌群")
                     FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(com.example.fitness_demo.ui.theme.Dimens.ChipSpacing),
                         verticalArrangement = Arrangement.spacedBy(com.example.fitness_demo.ui.theme.Dimens.ChipSpacing)
@@ -99,15 +100,13 @@ fun StartSessionScreen(
                         }
                     }
                     OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text("备注（可选）") }, modifier = Modifier.fillMaxWidth())
-                    Button(onClick = {
+                    GradientPrimaryButton(text = "开始训练！", onClick = {
                         scope.launch {
                             val session = repository.startNewSession(note = if (note.isBlank()) null else note)
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             onSessionStarted(session.id)
                         }
-                    }, modifier = Modifier.fillMaxWidth()) {
-                        Text("开始空白训练")
-                    }
+                    }, modifier = Modifier.fillMaxWidth())
                 }
             }
             Text("推荐模板（占位，后续可自定义）", modifier = Modifier.padding(top = 8.dp))

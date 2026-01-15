@@ -10,6 +10,8 @@ object Dimens {
     val ChipSpacing = 8.dp
     val CardElevationLow = 1.dp
     val CardElevationMed = 2.dp
+    val SheetElevation = 6.dp
+    val DividerThickness = 0.75.dp
     val ToolbarCorner = 16.dp
 }
 

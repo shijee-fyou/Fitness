@@ -77,6 +77,9 @@ interface SetEntryDao {
     @Query("UPDATE sets SET setNumber = setNumber - 1 WHERE sessionId = :sessionId AND setNumber > :fromNumber")
     suspend fun decrementSetNumbersFrom(sessionId: Int, fromNumber: Int)
 
+    @Query("UPDATE sets SET setNumber = setNumber + 1 WHERE sessionId = :sessionId AND setNumber >= :fromNumber")
+    suspend fun incrementSetNumbersFrom(sessionId: Int, fromNumber: Int)
+
     @Query("SELECT * FROM sets WHERE exerciseId = :exerciseId ORDER BY id DESC LIMIT :limit")
     suspend fun getLastSetsForExercise(exerciseId: Int, limit: Int): List<SetEntry>
 }

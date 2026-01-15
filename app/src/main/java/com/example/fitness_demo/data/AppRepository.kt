@@ -83,6 +83,22 @@ class AppRepository(
         setDao.decrementSetNumbersFrom(toDelete.sessionId, toDelete.setNumber)
     }
 
+    suspend fun getSetById(id: Int): SetEntry? = setDao.getById(id)
+
+    suspend fun restoreSet(set: SetEntry) {
+        // 为插回的组号腾位置：后续组号整体+1
+        setDao.incrementSetNumbersFrom(set.sessionId, set.setNumber)
+        setDao.insert(
+            SetEntry(
+                sessionId = set.sessionId,
+                exerciseId = set.exerciseId,
+                setNumber = set.setNumber,
+                reps = set.reps,
+                weightKg = set.weightKg,
+                rpe = set.rpe
+            )
+        )
+    }
     suspend fun getLastSetsForExercise(exerciseId: Int, limit: Int = 10): List<SetEntry> =
         setDao.getLastSetsForExercise(exerciseId, limit)
 

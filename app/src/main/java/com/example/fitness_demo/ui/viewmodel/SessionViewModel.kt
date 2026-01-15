@@ -16,6 +16,8 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.Job
+import android.os.SystemClock
 
 data class SessionSummary(
     val totalSets: Int,
@@ -28,6 +30,9 @@ class SessionViewModel(
     private val repository: AppRepository,
     private val sessionId: Int
 ) : ViewModel() {
+
+    // 默认每组结束后的自动休息秒数（可后续做成设置项）
+    private val defaultRestAfterSetSeconds = 60
 
     val exercises: StateFlow<List<Exercise>> =
         repository.observeExercises().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
@@ -55,6 +60,57 @@ class SessionViewModel(
 
     private val _session = MutableStateFlow<TrainingSession?>(null)
     val session: StateFlow<TrainingSession?> = _session.asStateFlow()
+
+    // 当前“待完成”的组（用于浮窗触发休息）
+    private val _pendingSetId = MutableStateFlow<Int?>(null)
+    val pendingSetId: StateFlow<Int?> = _pendingSetId.asStateFlow()
+
+    // 本组计时（灵动岛显示）
+    private val _groupElapsedMs = MutableStateFlow(0L)
+    val groupElapsedMs: StateFlow<Long> = _groupElapsedMs.asStateFlow()
+    private val _groupRunning = MutableStateFlow(false)
+    val groupRunning: StateFlow<Boolean> = _groupRunning.asStateFlow()
+    private var groupLastResumeElapsed: Long? = null
+    private var groupTick: Job? = null
+
+    private fun startGroupTicking() {
+        groupTick?.cancel()
+        groupTick = viewModelScope.launch {
+            while (_groupRunning.value) {
+                val lr = groupLastResumeElapsed
+                if (lr != null) {
+                    val now = SystemClock.elapsedRealtime()
+                    _groupElapsedMs.value = _groupElapsedMs.value + (now - lr)
+                    groupLastResumeElapsed = now
+                }
+                delay(1000)
+            }
+        }
+    }
+
+    fun startGroupTimer() {
+        if (_groupRunning.value) return
+        groupLastResumeElapsed = SystemClock.elapsedRealtime()
+        _groupRunning.value = true
+        startGroupTicking()
+    }
+
+    fun pauseGroupTimer() {
+        if (!_groupRunning.value) return
+        val lr = groupLastResumeElapsed ?: return
+        val now = SystemClock.elapsedRealtime()
+        _groupElapsedMs.value = _groupElapsedMs.value + (now - lr)
+        groupLastResumeElapsed = null
+        _groupRunning.value = false
+        groupTick?.cancel()
+    }
+
+    private fun resetGroupTimer() {
+        groupTick?.cancel()
+        _groupRunning.value = false
+        groupLastResumeElapsed = null
+        _groupElapsedMs.value = 0L
+    }
 
     enum class UnitSystem { KG, LB }
     private val _unitSystem = MutableStateFlow(UnitSystem.KG)
@@ -101,7 +157,7 @@ class SessionViewModel(
         val rpe = _rpeText.value.toFloatOrNull()
         val nextSetNum = (sets.value.maxOfOrNull { it.setNumber } ?: 0) + 1
         viewModelScope.launch {
-            repository.addSet(
+            val entry = repository.addSet(
                 sessionId = sessionId,
                 exerciseId = exId,
                 setNumber = nextSetNum,
@@ -109,6 +165,10 @@ class SessionViewModel(
                 weightKg = weight,
                 rpe = rpe
             )
+            _pendingSetId.value = entry.id
+            // 新增动作后自动开始本组计时
+            resetGroupTimer()
+            startGroupTimer()
         }
     }
 
@@ -195,7 +255,41 @@ class SessionViewModel(
     fun deleteSet(id: Int) {
         viewModelScope.launch {
             repository.deleteSet(id)
+            if (_pendingSetId.value == id) {
+                _pendingSetId.value = null
+            }
         }
+    }
+
+    // 撤销删除支持
+    private val _lastDeleted = MutableStateFlow<SetEntry?>(null)
+    val lastDeleted: StateFlow<SetEntry?> = _lastDeleted.asStateFlow()
+
+    fun deleteSetWithRemember(id: Int) {
+        viewModelScope.launch {
+            val snap = repository.getSetById(id) ?: return@launch
+            repository.deleteSet(id)
+            _lastDeleted.value = snap
+        }
+    }
+
+    fun undoLastDelete() {
+        viewModelScope.launch {
+            val snap = _lastDeleted.value ?: return@launch
+            repository.restoreSet(snap)
+            _lastDeleted.value = null
+            // 恢复的组不自动标记为进行中
+        }
+    }
+
+    fun completePendingSetAndStartRest(seconds: Int = 60) {
+        val cur = _pendingSetId.value ?: return
+        // 清空 pending 并启动休息
+        _pendingSetId.value = null
+        pauseGroupTimer()
+        resetGroupTimer()
+        stopRest()
+        addRest(seconds)
     }
 
     fun completeSession(onCompleted: (() -> Unit)? = null) {

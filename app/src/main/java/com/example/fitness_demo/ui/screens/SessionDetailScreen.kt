@@ -1,6 +1,7 @@
 package com.example.fitness_demo.ui.screens
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.size
@@ -16,6 +18,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.background
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
@@ -36,6 +39,13 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.SuggestionChip
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.IconButton
 import androidx.compose.runtime.Composable
@@ -58,6 +68,14 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -92,6 +110,16 @@ import androidx.compose.material.DismissValue
 import androidx.compose.material.rememberDismissState
 import androidx.compose.material.ExperimentalMaterialApi
 import com.example.fitness_demo.ui.util.Localization
+import kotlinx.coroutines.delay
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.material3.Surface
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import com.example.fitness_demo.ui.components.GradientPrimaryButton
+import androidx.compose.ui.unit.sp
 
 import com.example.fitness_demo.ui.theme.Dimens
 
@@ -119,7 +147,12 @@ fun SessionDetailScreen(
     var customReps by remember { mutableStateOf("") }
     var customWeight by remember { mutableStateOf("") }
     var summaryOpen by remember { mutableStateOf(false) }
+    var addSheetOpen by remember { mutableStateOf(false) }
 
+    val snackbarHostState = remember { SnackbarHostState() }
+    val uiScope = rememberCoroutineScope()
+    // 灵动岛展开/折叠（统一控制“待完成组/休息”两态）
+    var islandExpanded by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -145,68 +178,22 @@ fun SessionDetailScreen(
                 scrollBehavior = scrollBehavior
             )
         },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
     ) { padding ->
-        Column(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            if (restSeconds != null) {
-                ElevatedCard(
-                    elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(12.dp),
-                        horizontalArrangement = Arrangement.Start,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val total by vm.restTotalSeconds.collectAsState()
-                        val remaining = restSeconds ?: 0
-                        val fractionTarget = if (total != null && (total ?: 0) > 0) {
-                            (remaining.toFloat() / (total ?: 1)).coerceIn(0f, 1f)
-                        } else 0f
-                        val fraction by animateFloatAsState(targetValue = fractionTarget, label = "restProgress")
-
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            val trackColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.2f)
-                            val progressColor = MaterialTheme.colorScheme.primary
-                            Canvas(modifier = Modifier
-                                .padding(end = 0.dp)
-                                .let { it }
-                                .then(Modifier)
-                                .size(24.dp)) {
-                                // 背景轨道
-                                drawArc(
-                                    color = trackColor,
-                                    startAngle = 0f,
-                                    sweepAngle = 360f,
-                                    useCenter = false,
-                                    style = Stroke(width = 4f)
-                                )
-                                // 进度
-                                drawArc(
-                                    color = progressColor,
-                                    startAngle = -90f,
-                                    sweepAngle = 360f * fraction,
-                                    useCenter = false,
-                                    style = Stroke(width = 4f)
-                                )
-                            }
-                            Text(text = "休息 ${remaining}s")
-                        }
-                        Spacer(modifier = Modifier.weight(1f))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            AssistChip(onClick = { vm.addRest(30) }, label = { Text("+30s") })
-                            SuggestionChip(onClick = { vm.stopRest() }, label = { Text("结束") })
-                        }
-                    }
-                }
-            }
+            Column(modifier = Modifier.fillMaxSize()) {
+                // 顶部为灵动岛预留空间，避免拥挤
+                val islandVisible = (vm.pendingSetId.collectAsState().value != null) || (restSeconds != null)
+                val islandTarget = if (islandVisible) (if (islandExpanded) 168.dp else 60.dp) else 0.dp
+                val islandSpacer by animateDpAsState(targetValue = islandTarget + 12.dp, label = "islandSpacer")
+                Spacer(modifier = Modifier.height(islandSpacer))
+            // 顶部休息区域已移除，统一放到“灵动岛”中
 
             val currentName = exercises.firstOrNull { it.id == selectedExerciseId }?.name?.let { Localization.exercise(it) } ?: "选择训练"
             Row(
@@ -219,9 +206,36 @@ fun SessionDetailScreen(
                 Text(currentName)
                 TextButton(onClick = { pickerOpen = true }) { Text("选择") }
             }
+            // Hero 渐变区块：强化主次层次
+            ElevatedCard(
+                elevation = CardDefaults.elevatedCardElevation(defaultElevation = Dimens.CardElevationMed),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 72.dp)
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.08f)
+                                )
+                            )
+                        )
+                        .padding(Dimens.CardPadding)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text("最近动作", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(currentName, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                    }
+                }
+            }
             if (pickerOpen) {
                 val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-                ModalBottomSheet(onDismissRequest = { pickerOpen = false }, sheetState = sheetState) {
+                ModalBottomSheet(onDismissRequest = { pickerOpen = false }, sheetState = sheetState, tonalElevation = Dimens.SheetElevation) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         OutlinedTextField(
                             value = query,
@@ -255,7 +269,7 @@ fun SessionDetailScreen(
                                         pickerOpen = false
                                     }) { Text("选择") }
                                 }
-                                HorizontalDivider()
+                                HorizontalDivider(thickness = Dimens.DividerThickness, color = MaterialTheme.colorScheme.outlineVariant)
                             }
                         }
                     }
@@ -303,153 +317,25 @@ fun SessionDetailScreen(
             // 读取当前重量单位用于步长控制
             val unit by vm.unitSystem.collectAsState()
 
-            FlowRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 4.dp, bottom = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(Dimens.ChipSpacing),
-                verticalArrangement = Arrangement.spacedBy(Dimens.ChipSpacing),
-                maxItemsInEachRow = 3
-            ) {
-                // 次数（只读，覆盖层触发弹层）
-                Box(modifier = Modifier.weight(1f, fill = true)) {
-                    OutlinedTextField(
-                        value = repsText,
-                        onValueChange = vm::setRepsText,
-                        label = { Text("次数") },
-                        readOnly = true,
-                        singleLine = true,
-                        trailingIcon = {
-                            Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
-                                IconButton(onClick = {
-                                    val current = repsText.toIntOrNull() ?: 0
-                                    val next = (current - 1).coerceAtLeast(0)
-                                    vm.setRepsText(if (next == 0) "0" else next.toString())
-                                }) {
-                                    Icon(Icons.Filled.Remove, contentDescription = "减少次数")
-                                }
-                                IconButton(onClick = {
-                                    val current = repsText.toIntOrNull() ?: 0
-                                    vm.setRepsText((current + 1).toString())
-                                }) {
-                                    Icon(Icons.Filled.Add, contentDescription = "增加次数")
-                                }
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp)
-                            .widthIn(min = 96.dp)
-                    )
-                    Spacer(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .padding(end = 88.dp) // 预留尾部图标点击区域
-                            .clickable { repsPickerOpen = true }
-                    )
-                }
-                // 重量（只读，覆盖层触发弹层）
-                Box(modifier = Modifier.weight(1f, fill = true)) {
-                    OutlinedTextField(
-                        value = weightText,
-                        onValueChange = vm::setWeightText,
-                        label = { Text("重量(kg)") },
-                        readOnly = true,
-                        singleLine = true,
-                        trailingIcon = {
-                            val step = if (unit == com.example.fitness_demo.ui.viewmodel.SessionViewModel.UnitSystem.KG) 2.5f else 5f
-                            Row {
-                                IconButton(onClick = {
-                                    val base = weightText.toFloatOrNull() ?: 0f
-                                    val next = (base - step).coerceAtLeast(0f)
-                                    vm.setWeightText(if (next == 0f) "0" else "%.1f".format(next))
-                                }) {
-                                    Icon(Icons.Filled.Remove, contentDescription = "减少重量")
-                                }
-                                IconButton(onClick = {
-                                    val base = weightText.toFloatOrNull() ?: 0f
-                                    val next = base + step
-                                    vm.setWeightText("%.1f".format(next))
-                                }) {
-                                    Icon(Icons.Filled.Add, contentDescription = "增加重量")
-                                }
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp)
-                            .widthIn(min = 96.dp)
-                    )
-                    Spacer(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .padding(end = 88.dp)
-                            .clickable { weightPickerOpen = true }
-                    )
-                }
-                // RPE（滑块输入）
-                Column(
-                    modifier = Modifier
-                        .weight(1f, fill = true)
-                        .widthIn(min = 96.dp)
-                ) {
-                    Text("RPE")
-                    val rpeValue = vm.rpeText.collectAsState().value.toFloatOrNull()?.coerceIn(0f, 10f) ?: 0f
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Slider(
-                            value = rpeValue,
-                            onValueChange = { v ->
-                                val rounded = ((v * 10f).roundToInt() / 10f)
-                                vm.setRpeText("%.1f".format(rounded))
-                            },
-                            valueRange = 0f..10f,
-                            steps = 0,
-                            colors = SliderDefaults.colors(
-                                activeTrackColor = MaterialTheme.colorScheme.primary,
-                                inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                                thumbColor = MaterialTheme.colorScheme.primary
-                            ),
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text(text = "%.1f".format(rpeValue),
-                            modifier = Modifier.padding(start = 8.dp))
-                    }
-                }
-            }
-            // 复制上一组操作
+            // 移除常驻设置卡片，改为“新增时弹出”
+            // 复制上一组操作（已移除常驻“训练填充”，改为面板内提供）
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    AssistChip(onClick = {
-                        vm.presetFromLastOfSelectedExercise()
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    }, label = { Text("训练填充") })
-                }
-                Button(
-                    onClick = {
-                        vm.addSet()
-                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                        // 添加后清空输入
-                        vm.setRepsText("")
-                        vm.setWeightText("")
-                        vm.setRpeText("")
-                    },
-                    enabled = selectedExerciseId != null &&
-                        (repsText.toIntOrNull() != null) &&
-                        (weightText.isBlank() || weightText.toFloatOrNull() != null) &&
-                        (vm.rpeText.collectAsState().value.isBlank() || vm.rpeText.collectAsState().value.toFloatOrNull() != null)
-                ) { Text("添加") }
+                FilledTonalButton(
+                    onClick = { addSheetOpen = true },
+                    enabled = selectedExerciseId != null
+                ) { Text("新增一组") }
             }
 
             // 次数选择器底部弹层
             if (repsPickerOpen) {
                 val rSheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-                ModalBottomSheet(onDismissRequest = { repsPickerOpen = false }, sheetState = rSheet) {
+                ModalBottomSheet(onDismissRequest = { repsPickerOpen = false }, sheetState = rSheet, tonalElevation = Dimens.SheetElevation) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("选择次数", style = MaterialTheme.typography.titleMedium)
                         // 最近使用次数
@@ -491,10 +377,155 @@ fun SessionDetailScreen(
                 }
             }
 
+            // 新增一组：设置面板弹层
+            if (addSheetOpen) {
+                val addSheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+                ModalBottomSheet(onDismissRequest = { addSheetOpen = false }, sheetState = addSheet, tonalElevation = Dimens.SheetElevation) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("本组设置", style = MaterialTheme.typography.titleMedium)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            AssistChip(onClick = {
+                                vm.presetFromLastOfSelectedExercise()
+                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                            }, label = { Text("训练填充") })
+                        }
+                        // 读取单位
+                        val unit by vm.unitSystem.collectAsState()
+                        FlowRow(
+                            modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(Dimens.ChipSpacing),
+                            verticalArrangement = Arrangement.spacedBy(Dimens.ChipSpacing),
+                            maxItemsInEachRow = 3
+            ) {
+                            // 次数
+                            Box(modifier = Modifier.weight(1f, fill = true)) {
+                    OutlinedTextField(
+                        value = repsText,
+                        onValueChange = vm::setRepsText,
+                        label = { Text("次数") },
+                        readOnly = true,
+                        singleLine = true,
+                                    trailingIcon = {
+                                        Row(horizontalArrangement = Arrangement.spacedBy(0.dp)) {
+                                            RepeatIconButton(onStep = {
+                                                val current = repsText.toIntOrNull() ?: 0
+                                                val next = (current - 1).coerceAtLeast(0)
+                                                vm.setRepsText(if (next == 0) "0" else next.toString())
+                                            }) { Icon(Icons.Filled.Remove, contentDescription = "减少次数") }
+                                            RepeatIconButton(onStep = {
+                                                val current = repsText.toIntOrNull() ?: 0
+                                                vm.setRepsText((current + 1).toString())
+                                            }) { Icon(Icons.Filled.Add, contentDescription = "增加次数") }
+                                        }
+                                    },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 56.dp)
+                            .widthIn(min = 96.dp)
+                    )
+                    Spacer(
+                        modifier = Modifier
+                                        .matchParentSize()
+                                        .padding(end = 96.dp)
+                            .clickable { repsPickerOpen = true }
+                    )
+                }
+                            // 重量
+                            Box(modifier = Modifier.weight(1f, fill = true)) {
+                    OutlinedTextField(
+                        value = weightText,
+                        onValueChange = vm::setWeightText,
+                        label = { Text("重量(kg)") },
+                        readOnly = true,
+                        singleLine = true,
+                                    trailingIcon = {
+                                        val step = if (unit == com.example.fitness_demo.ui.viewmodel.SessionViewModel.UnitSystem.KG) 2.5f else 5f
+                                        Row {
+                                            RepeatIconButton(onStep = {
+                                                val base = weightText.toFloatOrNull() ?: 0f
+                                                val next = (base - step).coerceAtLeast(0f)
+                                                vm.setWeightText(if (next == 0f) "0" else "%.1f".format(next))
+                                            }) { Icon(Icons.Filled.Remove, contentDescription = "减少重量") }
+                                            RepeatIconButton(onStep = {
+                                                val base = weightText.toFloatOrNull() ?: 0f
+                                                val next = base + step
+                                                vm.setWeightText("%.1f".format(next))
+                                            }) { Icon(Icons.Filled.Add, contentDescription = "增加重量") }
+                                        }
+                                    },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 56.dp)
+                            .widthIn(min = 96.dp)
+                    )
+                    Spacer(
+                        modifier = Modifier
+                                        .matchParentSize()
+                                        .padding(end = 96.dp)
+                            .clickable { weightPickerOpen = true }
+                    )
+                }
+                            // RPE
+                            Column(
+                    modifier = Modifier
+                                    .weight(1f, fill = true)
+                        .widthIn(min = 96.dp)
+                            ) {
+                                Text("RPE")
+                                val rpeValue = vm.rpeText.collectAsState().value.toFloatOrNull()?.coerceIn(0f, 10f) ?: 0f
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Slider(
+                                        value = rpeValue,
+                                        onValueChange = { v ->
+                                            val rounded = ((v * 10f).roundToInt() / 10f)
+                                            vm.setRpeText("%.1f".format(rounded))
+                                        },
+                                        valueRange = 0f..10f,
+                                        steps = 0,
+                                        colors = SliderDefaults.colors(
+                                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                                            inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
+                                            thumbColor = MaterialTheme.colorScheme.primary
+                                        ),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text(text = "%.1f".format(rpeValue),
+                                        modifier = Modifier.padding(start = 8.dp))
+            }
+            Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text("0", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                                    Text("5", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                                    Text("10", color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.labelSmall)
+                                }
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            TextButton(onClick = { addSheetOpen = false }) { Text("取消") }
+                Button(
+                    onClick = {
+                        vm.addSet()
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    vm.setRepsText("")
+                                    vm.setWeightText("")
+                                    vm.setRpeText("")
+                                    addSheetOpen = false
+                    },
+                    enabled = selectedExerciseId != null &&
+                        (repsText.toIntOrNull() != null) &&
+                        (weightText.isBlank() || weightText.toFloatOrNull() != null) &&
+                        (vm.rpeText.collectAsState().value.isBlank() || vm.rpeText.collectAsState().value.toFloatOrNull() != null)
+                ) { Text("添加") }
+            }
+                    }
+                }
+            }
             // 重量选择器底部弹层
             if (weightPickerOpen) {
                 val wSheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-                ModalBottomSheet(onDismissRequest = { weightPickerOpen = false }, sheetState = wSheet) {
+                ModalBottomSheet(onDismissRequest = { weightPickerOpen = false }, sheetState = wSheet, tonalElevation = Dimens.SheetElevation) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("选择重量(kg)", style = MaterialTheme.typography.titleMedium)
                         // 单位切换
@@ -547,7 +578,7 @@ fun SessionDetailScreen(
                     }
                 }
             }
-            HorizontalDivider()
+            HorizontalDivider(thickness = Dimens.DividerThickness, color = MaterialTheme.colorScheme.outlineVariant)
             val listState = androidx.compose.foundation.lazy.rememberLazyListState()
             var prevSize by remember { mutableStateOf(sets.size) }
             LaunchedEffect(sets.size) {
@@ -559,7 +590,7 @@ fun SessionDetailScreen(
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 state = listState,
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 8.dp)
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = Dimens.SectionSpacing)
             ) {
                 items(
                     items = sets.sortedBy { it.setNumber },
@@ -568,8 +599,19 @@ fun SessionDetailScreen(
                     val dismissState = rememberDismissState(
                         confirmStateChange = { value ->
                             if (value == DismissValue.DismissedToStart) {
-                                haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                                vm.deleteSet(set.id)
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                                vm.deleteSetWithRemember(set.id)
+                                uiScope.launch {
+                                    val res = snackbarHostState.showSnackbar(
+                                        message = "已删除一组",
+                                        actionLabel = "撤销",
+                                        duration = SnackbarDuration.Short,
+                                        withDismissAction = true
+                                    )
+                                    if (res == SnackbarResult.ActionPerformed) {
+                                        vm.undoLastDelete()
+                                    }
+                                }
                                 true
                             } else {
                                 false
@@ -590,6 +632,163 @@ fun SessionDetailScreen(
                     )
                 }
             }
+            }
+            // 浮窗（灵动岛风格）：当前“待完成组”
+            val pendingId by vm.pendingSetId.collectAsState()
+            if (pendingId != null && restSeconds == null) {
+                val shape = RoundedCornerShape(28.dp)
+                val targetHeight = if (islandExpanded) 168.dp else 60.dp
+                val h by animateDpAsState(targetValue = targetHeight, label = "islandHeight")
+                val pendingSet = sets.firstOrNull { it.id == pendingId }
+                Surface(
+                    tonalElevation = 4.dp,
+                    shadowElevation = 8.dp,
+                    shape = shape,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 8.dp)
+                        .widthIn(min = 220.dp, max = 520.dp)
+                        .heightIn(min = 52.dp)
+                        .height(h)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .clip(shape)
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.96f),
+                                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.92f)
+                                    )
+                                )
+                            )
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Filled.Check, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
+                                Text("本组进行中", color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.titleMedium)
+                            }
+                            IconButton(onClick = { islandExpanded = !islandExpanded }) {
+                                Icon(if (islandExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
+                            }
+                        }
+                        if (islandExpanded) {
+                            Spacer(modifier = Modifier.size(12.dp))
+                            Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    val ex = exercises.firstOrNull { it.id == pendingSet?.exerciseId }?.name?.let { Localization.exercise(it) } ?: "动作"
+                                    Text(ex, color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.titleSmall)
+                                    val meta = pendingSet?.let { set ->
+                                        val w = set.weightKg?.let { "${"%.1f".format(it)}kg" } ?: "自重"
+                                        "${set.reps} 次 × $w${set.rpe?.let { " · RPE ${"%.1f".format(it)}" } ?: ""}"
+                                    } ?: "进行中…"
+                                    Text(meta, color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.92f), style = MaterialTheme.typography.labelMedium)
+                                }
+                                // 组计时（mm:ss）
+                                val gMs by vm.groupElapsedMs.collectAsState()
+                                val gSec = (gMs / 1000).coerceAtLeast(0)
+                                val gmm = (gSec / 60).toInt()
+                                val gss = (gSec % 60).toInt()
+                                Column(horizontalAlignment = Alignment.End) {
+                                    Text(
+                                        "${"%02d:%02d".format(gmm, gss)}",
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        fontFamily = FontFamily.Monospace,
+                                        letterSpacing = 0.5.sp
+                                    )
+                                    FilledTonalButton(onClick = { vm.completePendingSetAndStartRest(60) }) {
+                                        Text("完成本组", style = MaterialTheme.typography.labelLarge)
+                                    }
+                                }
+                            }
+                        } else {
+                            // 折叠态点击整体即可快速完成
+                            Spacer(modifier = Modifier.size(0.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(0.dp)
+                                    .clickable { vm.completePendingSetAndStartRest(60) }
+                            )
+                        }
+                    }
+                }
+            }
+            // 休息态灵动岛
+            if (restSeconds != null) {
+                val shape = RoundedCornerShape(28.dp)
+                val total by vm.restTotalSeconds.collectAsState()
+                val remaining = restSeconds ?: 0
+                val fractionTarget = if (total != null && (total ?: 0) > 0) {
+                    (remaining.toFloat() / (total ?: 1)).coerceIn(0f, 1f)
+                } else 0f
+                val fraction by animateFloatAsState(targetValue = fractionTarget, label = "restProgressIsland")
+                val targetHeight = if (islandExpanded) 168.dp else 60.dp
+                val h by animateDpAsState(targetValue = targetHeight, label = "restIslandHeight")
+                Surface(
+                    tonalElevation = 4.dp,
+                    shadowElevation = 8.dp,
+                    shape = shape,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 8.dp)
+                        .widthIn(min = 220.dp, max = 520.dp)
+                        .heightIn(min = 52.dp)
+                        .height(h)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .clip(shape)
+                            .background(
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.96f),
+                                        MaterialTheme.colorScheme.secondary.copy(alpha = 0.92f)
+                                    )
+                                )
+                            )
+                            .padding(horizontal = 16.dp, vertical = 12.dp)
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                Text(
+                                    "休息 ${"%02d:%02d".format((remaining / 60), (remaining % 60))}",
+                                    color = MaterialTheme.colorScheme.onPrimary,
+                                    style = MaterialTheme.typography.titleLarge,
+                                    fontFamily = FontFamily.Monospace,
+                                    letterSpacing = 0.5.sp
+                                )
+                            }
+                            IconButton(onClick = { islandExpanded = !islandExpanded }) {
+                                Icon(if (islandExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
+                            }
+                        }
+                        if (islandExpanded) {
+                            Spacer(modifier = Modifier.size(12.dp))
+                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                TextButton(
+                                    onClick = { vm.addRest(30) },
+                                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary)
+                                ) { Text("+30s", style = MaterialTheme.typography.titleSmall) }
+                                TextButton(
+                                    onClick = { vm.stopRest() },
+                                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary)
+                                ) { Text("结束", style = MaterialTheme.typography.titleSmall) }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
     if (summaryOpen) {
@@ -601,26 +800,73 @@ fun SessionDetailScreen(
         val onSurfaceColor = MaterialTheme.colorScheme.onSurface
         val surfaceColor = MaterialTheme.colorScheme.surface
         val session by vm.session.collectAsState()
-        ModalBottomSheet(onDismissRequest = { summaryOpen = false }, sheetState = sheetState) {
+        ModalBottomSheet(onDismissRequest = { summaryOpen = false }, sheetState = sheetState, tonalElevation = Dimens.SheetElevation) {
             Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("训练总结", style = MaterialTheme.typography.titleMedium)
                 ElevatedCard(elevation = CardDefaults.elevatedCardElevation(defaultElevation = 1.dp)) {
-                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("主题：${summary.theme ?: "训练"}", style = MaterialTheme.typography.bodyMedium)
-                        Text("组数：${summary.totalSets}", style = MaterialTheme.typography.bodyMedium)
-                        Text("总次数：${summary.totalReps}", style = MaterialTheme.typography.bodyMedium)
-                        Text("总训练量：${"%.1f".format(summary.totalVolumeKg)} kg", style = MaterialTheme.typography.bodyMedium)
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        summary.theme?.let { AssistChip(onClick = {}, label = { Text(it) }) }
+                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                shape = RoundedCornerShape(12.dp),
+                            ) {
+                                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                                    Text("${summary.totalSets}", style = MaterialTheme.typography.titleLarge)
+                                    Text("组数", style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                            Surface(
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                shape = RoundedCornerShape(12.dp),
+                            ) {
+                                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                                    Text("${summary.totalReps}", style = MaterialTheme.typography.titleLarge)
+                                    Text("总次数", style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                            Surface(
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                shape = RoundedCornerShape(12.dp),
+                            ) {
+                                Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
+                                    Text("${"%.1f".format(summary.totalVolumeKg)}", style = MaterialTheme.typography.titleLarge)
+                                    Text("训练量(kg)", style = MaterialTheme.typography.labelMedium)
+                                }
+                            }
+                        }
                         session?.let { s ->
                             val end = s.endTimeMillis ?: System.currentTimeMillis()
                             val durMin = ((end - s.startTimeMillis) / 60000.0).toInt()
-                            Text("时长：${durMin} min", style = MaterialTheme.typography.bodyMedium)
                             val formatter = java.text.SimpleDateFormat("MM.dd HH:mm", java.util.Locale.getDefault())
-                            Text("时间：${formatter.format(java.util.Date(s.startTimeMillis))} - ${formatter.format(java.util.Date(end))}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(
+                                "时长 ${durMin} 分钟 · ${formatter.format(java.util.Date(s.startTimeMillis))} - ${formatter.format(java.util.Date(end))}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = {
+                // 完成训练并返回日历/记录页
+                // 主操作按钮：渐变 + 轻微按压动效
+                GradientPrimaryButton(
+                    text = "完成训练！",
+                    leadingIcon = Icons.Filled.Check,
+                    onClick = {
+                        vm.completeSession {
+                            summaryOpen = false
+                            onBack()
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Text("分享", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FilledTonalButton(
+                        onClick = {
                         val text = buildString {
                             appendLine("训练总结")
                             appendLine("主题：${summary.theme ?: "训练"}")
@@ -630,10 +876,14 @@ fun SessionDetailScreen(
                         }
                         clipboard.setText(AnnotatedString(text))
                         haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                    }) {
-                        Text("分享（复制）")
+                        },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                    ) {
+                        Icon(Icons.Filled.ContentCopy, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
+                        Text("复制摘要")
                     }
-                    Button(onClick = {
+                    FilledTonalButton(
+                        onClick = {
                         val text = buildString {
                             appendLine("训练总结")
                             appendLine("主题：${summary.theme ?: "训练"}")
@@ -646,10 +896,16 @@ fun SessionDetailScreen(
                             putExtra(Intent.EXTRA_TEXT, text)
                         }
                         context.startActivity(Intent.createChooser(intent, "分享训练总结"))
-                    }) {
+                        },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                    ) {
+                        Icon(Icons.Filled.Share, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
                         Text("系统分享")
                     }
-                    Button(onClick = {
+                }
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    FilledTonalButton(
+                        onClick = {
                         // 生成图片分享卡片
                         val primary = primaryColor.toArgb()
                         val onSurface = onSurfaceColor.toArgb()
@@ -661,15 +917,12 @@ fun SessionDetailScreen(
                         c.drawColor(surface)
                         val card = RectF(60f, 120f, width - 60f, height - 160f)
                         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-                        // 卡片背景
                         paint.color = 0xFFFFFFFF.toInt()
                         c.drawRoundRect(card, 32f, 32f, paint)
-                        // 标题
                         paint.color = onSurface
                         paint.textSize = 64f
                         paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
                         c.drawText("训练总结", card.left + 48f, card.top + 120f, paint)
-                        // 主题芯片
                         val chipRect = RectF(card.left + 48f, card.top + 150f, card.left + 48f + 260f, card.top + 210f)
                         paint.color = primary
                         c.drawRoundRect(chipRect, 24f, 24f, paint)
@@ -678,7 +931,6 @@ fun SessionDetailScreen(
                         paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.NORMAL)
                         val themeText = (summary.theme ?: "训练")
                         c.drawText(themeText, chipRect.left + 28f, chipRect.bottom - 18f, paint)
-                        // 指标
                         paint.color = onSurface
                         paint.textSize = 48f
                         paint.typeface = Typeface.create(Typeface.SANS_SERIF, Typeface.BOLD)
@@ -691,11 +943,9 @@ fun SessionDetailScreen(
                         c.drawText("${summary.totalReps}", card.right - 48f - paint.measureText("${summary.totalReps}"), y0 + 120f, paint)
                         val volStr = "%.1f kg".format(summary.totalVolumeKg)
                         c.drawText(volStr, card.right - 48f - paint.measureText(volStr), y0 + 240f, paint)
-                        // 日期
                         paint.textSize = 40f
                         val dateStr = java.text.SimpleDateFormat("yyyy.MM.dd HH:mm").format(java.util.Date())
                         c.drawText(dateStr, card.left + 48f, card.bottom - 60f, paint)
-                        // 保存到缓存并分享
                         val dir = File(context.cacheDir, "images").apply { mkdirs() }
                         val outFile = File(dir, "summary_${System.currentTimeMillis()}.png")
                         FileOutputStream(outFile).use { fos -> bmp.compress(Bitmap.CompressFormat.PNG, 100, fos) }
@@ -706,14 +956,18 @@ fun SessionDetailScreen(
                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                         }
                         context.startActivity(Intent.createChooser(intent, "分享训练总结图片"))
-                    }) {
+                        },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)
+                    ) {
+                        Icon(Icons.Filled.Image, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
                         Text("图片分享")
+                    }
+                    Spacer(modifier = Modifier.weight(1f))
                     }
                     TextButton(onClick = {
                         summaryOpen = false
                         onBack()
-                    }) { Text("返回记录") }
-                }
+                }, modifier = Modifier.fillMaxWidth()) { Text("返回记录") }
             }
         }
     }
@@ -721,20 +975,47 @@ fun SessionDetailScreen(
 
 @Composable
 private fun SetRowContent(set: SetEntry) {
+    val volume = ((set.weightKg ?: 0f) * set.reps).toInt()
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column {
-            Text(text = "组 ${set.setNumber}")
-            val weightPart = set.weightKg?.let { "重量 ${"%.1f".format(it)}kg" } ?: "自重"
-            val rpePart = set.rpe?.let { "，RPE ${"%.1f".format(it)}" } ?: ""
-            Text(text = "次数 ${set.reps}，$weightPart$rpePart")
+        Surface(
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Text(
+                text = "组 ${set.setNumber}",
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
         }
+        Spacer(modifier = Modifier.size(8.dp))
+        val weightPart = set.weightKg?.let { "${"%.1f".format(it)} kg" } ?: "自重"
+        Text(
+            text = "${set.reps} 次 × $weightPart",
+            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        set.rpe?.let {
+            Spacer(modifier = Modifier.size(8.dp))
+            Text(
+                text = "RPE ${"%.1f".format(it)}",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(modifier = Modifier.weight(1f))
+        Text(
+            text = "${volume} kg·rep",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
-    HorizontalDivider()
+    HorizontalDivider(thickness = com.example.fitness_demo.ui.theme.Dimens.DividerThickness, color = MaterialTheme.colorScheme.outlineVariant)
 }
 
 private fun groupLabel(en: String): String = when (en.lowercase()) {
@@ -748,6 +1029,30 @@ private fun groupLabel(en: String): String = when (en.lowercase()) {
     "full body" -> "全身"
     "other" -> "其它"
     else -> en
+}
+
+@Composable
+private fun RepeatIconButton(
+    onStep: () -> Unit,
+    enabled: Boolean = true,
+    initialDelayMs: Long = 450,
+    repeatDelayMs: Long = 90,
+    content: @Composable () -> Unit
+) {
+    val interaction = remember { MutableInteractionSource() }
+    val isPressed by interaction.collectIsPressedAsState()
+    LaunchedEffect(isPressed, enabled) {
+        if (enabled && isPressed) {
+            delay(initialDelayMs)
+            while (enabled && isPressed) {
+                onStep()
+                delay(repeatDelayMs)
+            }
+        }
+    }
+    IconButton(onClick = onStep, enabled = enabled, interactionSource = interaction) {
+        content()
+    }
 }
 
 
