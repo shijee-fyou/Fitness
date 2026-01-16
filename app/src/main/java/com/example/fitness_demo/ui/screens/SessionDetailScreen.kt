@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.heightIn
@@ -153,6 +154,11 @@ fun SessionDetailScreen(
     val uiScope = rememberCoroutineScope()
     // 灵动岛展开/折叠（统一控制“待完成组/休息”两态）
     var islandExpanded by remember { mutableStateOf(false) }
+    LaunchedEffect(restSeconds) {
+        if (restSeconds != null) {
+            islandExpanded = false
+        }
+    }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -190,7 +196,9 @@ fun SessionDetailScreen(
             Column(modifier = Modifier.fillMaxSize()) {
                 // 顶部为灵动岛预留空间，避免拥挤
                 val islandVisible = (vm.pendingSetId.collectAsState().value != null) || (restSeconds != null)
-                val islandTarget = if (islandVisible) (if (islandExpanded) 168.dp else 60.dp) else 0.dp
+                val islandTarget = if (islandVisible) {
+                    if (restSeconds != null) 64.dp else if (islandExpanded) 168.dp else 60.dp
+                } else 0.dp
                 val islandSpacer by animateDpAsState(targetValue = islandTarget + 12.dp, label = "islandSpacer")
                 Spacer(modifier = Modifier.height(islandSpacer))
             // 顶部休息区域已移除，统一放到“灵动岛”中
@@ -678,9 +686,13 @@ fun SessionDetailScreen(
                             }
                         }
                         if (islandExpanded) {
-                            Spacer(modifier = Modifier.size(12.dp))
-                            Row(horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Spacer(modifier = Modifier.size(10.dp))
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                     val ex = exercises.firstOrNull { it.id == pendingSet?.exerciseId }?.name?.let { Localization.exercise(it) } ?: "动作"
                                     Text(ex, color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.titleSmall)
                                     val meta = pendingSet?.let { set ->
@@ -694,18 +706,31 @@ fun SessionDetailScreen(
                                 val gSec = (gMs / 1000).coerceAtLeast(0)
                                 val gmm = (gSec / 60).toInt()
                                 val gss = (gSec % 60).toInt()
-                                Column(horizontalAlignment = Alignment.End) {
+                                Surface(
+                                    color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.16f),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
                                     Text(
                                         "${"%02d:%02d".format(gmm, gss)}",
                                         color = MaterialTheme.colorScheme.onPrimary,
                                         style = MaterialTheme.typography.titleLarge,
                                         fontFamily = FontFamily.Monospace,
-                                        letterSpacing = 0.5.sp
+                                        letterSpacing = 0.5.sp,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                                     )
-                                    FilledTonalButton(onClick = { vm.completePendingSetAndStartRest(60) }) {
-                                        Text("完成本组", style = MaterialTheme.typography.labelLarge)
-                                    }
                                 }
+                            }
+                            Spacer(modifier = Modifier.size(10.dp))
+                            FilledTonalButton(
+                                onClick = { vm.completePendingSetAndStartRest(60) },
+                                shape = RoundedCornerShape(18.dp),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.18f),
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                ),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("完成本组", style = MaterialTheme.typography.labelLarge)
                             }
                         } else {
                             // 折叠态点击整体即可快速完成
@@ -723,13 +748,8 @@ fun SessionDetailScreen(
             // 休息态灵动岛
             if (restSeconds != null) {
                 val shape = RoundedCornerShape(28.dp)
-                val total by vm.restTotalSeconds.collectAsState()
                 val remaining = restSeconds ?: 0
-                val fractionTarget = if (total != null && (total ?: 0) > 0) {
-                    (remaining.toFloat() / (total ?: 1)).coerceIn(0f, 1f)
-                } else 0f
-                val fraction by animateFloatAsState(targetValue = fractionTarget, label = "restProgressIsland")
-                val targetHeight = if (islandExpanded) 168.dp else 60.dp
+                val targetHeight = 64.dp
                 val h by animateDpAsState(targetValue = targetHeight, label = "restIslandHeight")
                 Surface(
                     tonalElevation = 4.dp,
@@ -756,34 +776,44 @@ fun SessionDetailScreen(
                             .padding(horizontal = 16.dp, vertical = 12.dp)
                     ) {
                         Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight(),
                             horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                Text(
-                                    "休息 ${"%02d:%02d".format((remaining / 60), (remaining % 60))}",
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    fontFamily = FontFamily.Monospace,
-                                    letterSpacing = 0.5.sp
-                                )
-                            }
-                            IconButton(onClick = { islandExpanded = !islandExpanded }) {
-                                Icon(if (islandExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimary)
-                            }
-                        }
-                        if (islandExpanded) {
-                            Spacer(modifier = Modifier.size(12.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                TextButton(
+                            Text(
+                                "${"%02d:%02d".format((remaining / 60), (remaining % 60))}",
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .padding(end = 8.dp),
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontFamily = FontFamily.Monospace,
+                                letterSpacing = 0.5.sp,
+                                maxLines = 1
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                FilledTonalButton(
                                     onClick = { vm.addRest(30) },
-                                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary)
-                                ) { Text("+30s", style = MaterialTheme.typography.titleSmall) }
-                                TextButton(
+                                    shape = shape,
+                                    colors = ButtonDefaults.filledTonalButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.16f),
+                                        contentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
+                                    ),
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                                    modifier = Modifier.height(32.dp)
+                                ) { Text("+30s", style = MaterialTheme.typography.labelMedium) }
+                                FilledTonalButton(
                                     onClick = { vm.stopRest() },
-                                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onPrimary)
-                                ) { Text("结束", style = MaterialTheme.typography.titleSmall) }
+                                    shape = shape,
+                                    colors = ButtonDefaults.filledTonalButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.16f),
+                                        contentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.9f)
+                                    ),
+                                    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 10.dp, vertical = 0.dp),
+                                    modifier = Modifier.height(32.dp)
+                                ) { Text("结束", style = MaterialTheme.typography.labelMedium) }
                             }
                         }
                     }
