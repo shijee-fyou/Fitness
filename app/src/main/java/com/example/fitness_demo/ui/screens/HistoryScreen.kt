@@ -98,6 +98,8 @@ import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import com.example.fitness_demo.data.SettingsStore
 
 private data class DaySummary(val sessionCount: Int, val totalVolumeKg: Float, val topGroups: List<String>)
 private data class TodaySummary(val sessionCount: Int, val setCount: Int, val totalVolumeKg: Float, val durationMin: Int)
@@ -108,6 +110,8 @@ fun HistoryScreen(
     onBack: () -> Unit,
     onOpenSession: (Int) -> Unit
 ) {
+    val context = LocalContext.current
+    val unitName = normalizeWeightUnit(SettingsStore.getDefaultWeightUnit(context))
     val sessions by repository.observeSessions().collectAsState(initial = emptyList())
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var query = remember { mutableStateOf("") }
@@ -149,6 +153,7 @@ fun HistoryScreen(
         topBar = {
             HistoryTopBar(
                 summary = todaySummary,
+                unitName = unitName,
                 calendarMode = calendarMode,
                 onToggleMode = { calendarMode = !calendarMode },
                 onStartSession = {
@@ -451,10 +456,11 @@ fun HistoryScreen(
                                     val dayNumber = index - mFirstWeekIndex + 1
                                     if (dayNumber in 1..mDays) {
                                         val date = mStart.withDayOfMonth(dayNumber)
-                                            DayCell(
+                                        DayCell(
                                             date = date,
                                             sessions = dateToSessions[date] ?: emptyList(),
                                             onOpenSession = onOpenSession,
+                                            unitName = unitName,
                                                 onClickDay = { d ->
                                                 selectedDate = d
                                                 sheetDate = d
@@ -506,10 +512,11 @@ fun HistoryScreen(
                                     }
                                     val totalSets = stats.values.sumOf { it.first }
                                     val totalVolume = stats.values.fold(0f) { acc, p -> acc + p.second }
+                                    val totalVolumeShown = convertWeightForUnit(totalVolume, unitName)
                                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                         AssistChip(onClick = {}, label = { Text("会话 ${list.size}") })
                                         AssistChip(onClick = {}, label = { Text("组数 $totalSets") })
-                                        AssistChip(onClick = {}, label = { Text("训练量 ${"%.0f".format(totalVolume)}kg") })
+                                        AssistChip(onClick = {}, label = { Text("训练量 ${"%.0f".format(totalVolumeShown)}$unitName") })
                                     }
                                     // 近7天训练次数微图（按 sessions 数量）
                                     val last7 = (0..6).map { i -> sheetDate!!.minusDays((6 - i).toLong()) }
@@ -553,7 +560,8 @@ fun HistoryScreen(
                                                             AssistChip(onClick = {}, label = { Text("组数 ${setsCount}") })
                                                         }
                                                         if (volume != null) {
-                                                            AssistChip(onClick = {}, label = { Text("总量 ${"%.0f".format(volume)}kg") })
+                                                            val volumeShown = convertWeightForUnit(volume, unitName)
+                                                            AssistChip(onClick = {}, label = { Text("总量 ${"%.0f".format(volumeShown)}$unitName") })
                                                         }
                                                     }
                                                 }
@@ -610,6 +618,7 @@ fun HistoryScreen(
 @Composable
 private fun HistoryTopBar(
     summary: TodaySummary,
+    unitName: String,
     calendarMode: Boolean,
     onToggleMode: () -> Unit,
     onStartSession: () -> Unit,
@@ -618,7 +627,7 @@ private fun HistoryTopBar(
     LargeTopAppBar(
         title = { Text("训练记录") },
         navigationIcon = {
-            TodaySummaryCard(summary = summary)
+            TodaySummaryCard(summary = summary, unitName = unitName)
         },
         actions = {
             TextButton(onClick = onToggleMode) {
@@ -633,7 +642,7 @@ private fun HistoryTopBar(
 }
 
 @Composable
-private fun TodaySummaryCard(summary: TodaySummary) {
+private fun TodaySummaryCard(summary: TodaySummary, unitName: String) {
     ElevatedCard(
         elevation = CardDefaults.elevatedCardElevation(defaultElevation = Dimens.CardElevationLow),
         colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
@@ -651,10 +660,11 @@ private fun TodaySummaryCard(summary: TodaySummary) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 SummaryChip(text = "次数 ${summary.sessionCount}")
                 SummaryChip(text = "组数 ${summary.setCount}")
+                val totalShown = convertWeightForUnit(summary.totalVolumeKg, unitName)
+                SummaryChip(text = "总量 ${"%.0f".format(totalShown)}$unitName")
             }
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                 SummaryChip(text = "时长 ${summary.durationMin}分钟")
-                SummaryChip(text = "容量 ${"%.0f".format(summary.totalVolumeKg)}")
             }
         }
     }
@@ -703,6 +713,7 @@ private fun DayCell(
     date: LocalDate,
     sessions: List<TrainingSession>,
     onOpenSession: (Int) -> Unit,
+    unitName: String,
     onLongPressDay: (LocalDate) -> Unit = {},
     onClickDay: (LocalDate) -> Unit = {},
     selected: Boolean = false,
@@ -739,7 +750,7 @@ private fun DayCell(
             color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center
         )
-        val vol = (summary?.totalVolumeKg ?: 0f).coerceAtLeast(0f)
+        val vol = convertWeightForUnit((summary?.totalVolumeKg ?: 0f).coerceAtLeast(0f), unitName)
         if (vol > 0f) {
             androidx.compose.material3.Surface(
                 color = MaterialTheme.colorScheme.secondaryContainer,
@@ -758,6 +769,14 @@ private fun DayCell(
             }
         }
     }}
+}
+
+private fun normalizeWeightUnit(unitName: String): String {
+    return if (unitName.lowercase() == "lb") "lb" else "kg"
+}
+
+private fun convertWeightForUnit(kg: Float, unitName: String): Float {
+    return if (normalizeWeightUnit(unitName) == "lb") kg * 2.20462f else kg
 }
 
 @Composable

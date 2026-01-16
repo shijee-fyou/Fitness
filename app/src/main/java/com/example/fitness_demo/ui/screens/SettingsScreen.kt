@@ -59,6 +59,8 @@ fun SettingsScreen(
     val context = LocalContext.current
     var restSeconds by remember { mutableStateOf(SettingsStore.getDefaultRestSeconds(context)) }
     var restPickerOpen by remember { mutableStateOf(false) }
+    var weightUnit by remember { mutableStateOf(SettingsStore.getDefaultWeightUnit(context)) }
+    var weightPickerOpen by remember { mutableStateOf(false) }
     Scaffold(
         topBar = {
             LargeTopAppBar(
@@ -95,7 +97,11 @@ fun SettingsScreen(
                     SettingsRow(
                         title = "重量单位",
                         subtitle = "训练记录与统计的显示单位",
-                        trailing = { Text("kg", color = MaterialTheme.colorScheme.primary) }
+                        trailing = {
+                            TextButton(onClick = { weightPickerOpen = true }) {
+                                Text(weightUnit, color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
                     )
                     SettingsRow(
                         title = "自动开始计时",
@@ -330,6 +336,98 @@ fun SettingsScreen(
                             ) {
                                 Text(
                                     "${value} 秒",
+                                    style = if (dist == 0)
+                                        MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
+                                    else
+                                        MaterialTheme.typography.bodyMedium
+                                )
+                            }
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .fillMaxWidth()
+                            .height(itemHeight)
+                            .background(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.08f),
+                                RoundedCornerShape(12.dp)
+                            )
+                    )
+                }
+            }
+        }
+    }
+
+    if (weightPickerOpen) {
+        val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = false)
+        val options = remember { listOf("kg", "lb") }
+        val itemHeight = 42.dp
+        val listState = rememberLazyListState(
+            initialFirstVisibleItemIndex = (options.indexOf(weightUnit).coerceAtLeast(0))
+        )
+        val density = LocalDensity.current
+        val itemPx = with(density) { itemHeight.toPx() }
+        val centeredIndex by remember {
+            derivedStateOf {
+                val idx = listState.firstVisibleItemIndex
+                val offset = listState.firstVisibleItemScrollOffset
+                val delta = if (offset > itemPx / 2f) 1 else 0
+                (idx + delta).coerceIn(0, options.lastIndex)
+            }
+        }
+        ModalBottomSheet(
+            onDismissRequest = { weightPickerOpen = false },
+            sheetState = sheetState
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 180.dp, max = 240.dp)
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = { weightPickerOpen = false }) { Text("取消") }
+                    TextButton(onClick = {
+                        weightUnit = options[centeredIndex]
+                        SettingsStore.setDefaultWeightUnit(context, weightUnit)
+                        weightPickerOpen = false
+                    }) { Text("完成") }
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = itemHeight * 5)
+                ) {
+                    LazyColumn(
+                        state = listState,
+                        flingBehavior = rememberSnapFlingBehavior(listState),
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(vertical = itemHeight * 2)
+                    ) {
+                        items(options.size) { i ->
+                            val value = options[i]
+                            val dist = kotlin.math.abs(i - centeredIndex)
+                            val scale = if (dist == 0) 1.06f else 0.92f
+                            val alpha = if (dist == 0) 1.0f else 0.45f
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(itemHeight)
+                                    .graphicsLayer {
+                                        scaleX = scale
+                                        scaleY = scale
+                                        this.alpha = alpha
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    value,
                                     style = if (dist == 0)
                                         MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                                     else

@@ -126,6 +126,10 @@ class SessionViewModel(
         _unitSystem.value = if (_unitSystem.value == UnitSystem.KG) UnitSystem.LB else UnitSystem.KG
     }
 
+    fun setUnitSystem(system: UnitSystem) {
+        _unitSystem.value = system
+    }
+
     private fun rememberRecentReps(value: Int) {
         val list = _recentReps.value.toMutableList()
         if (!list.contains(value)) list.add(0, value)

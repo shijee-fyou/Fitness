@@ -139,6 +139,7 @@ fun SessionDetailScreen(
     val weightText by vm.weightText.collectAsState()
     val selectedExerciseId by vm.selectedExerciseId.collectAsState()
     val haptics = LocalHapticFeedback.current
+    val appContext = LocalContext.current
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     val restSeconds by vm.restSeconds.collectAsState()
     val context = LocalContext.current
@@ -334,6 +335,15 @@ fun SessionDetailScreen(
 
             // 读取当前重量单位用于步长控制
             val unit by vm.unitSystem.collectAsState()
+            val defaultUnitName = SettingsStore.getDefaultWeightUnit(appContext)
+            LaunchedEffect(defaultUnitName) {
+                val desired = if (defaultUnitName.lowercase() == "lb") {
+                    com.example.fitness_demo.ui.viewmodel.SessionViewModel.UnitSystem.LB
+                } else {
+                    com.example.fitness_demo.ui.viewmodel.SessionViewModel.UnitSystem.KG
+                }
+                vm.setUnitSystem(desired)
+            }
 
             // 移除常驻设置卡片，改为“新增时弹出”
             // 复制上一组操作（已移除常驻“训练填充”，改为面板内提供）
@@ -458,7 +468,11 @@ fun SessionDetailScreen(
                     OutlinedTextField(
                         value = weightText,
                         onValueChange = vm::setWeightText,
-                        label = { Text("重量(kg)") },
+                        label = {
+                            Text(
+                                if (unit == com.example.fitness_demo.ui.viewmodel.SessionViewModel.UnitSystem.KG) "重量(kg)" else "重量(lb)"
+                            )
+                        },
                         readOnly = true,
                         singleLine = true,
                                     trailingIcon = {
@@ -550,12 +564,22 @@ fun SessionDetailScreen(
                 val wSheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                 ModalBottomSheet(onDismissRequest = { weightPickerOpen = false }, sheetState = wSheet, tonalElevation = Dimens.SheetElevation) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("选择重量(kg)", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            if (unit == com.example.fitness_demo.ui.viewmodel.SessionViewModel.UnitSystem.KG) "选择重量(kg)" else "选择重量(lb)",
+                            style = MaterialTheme.typography.titleMedium
+                        )
                         // 单位切换
                         val unit by vm.unitSystem.collectAsState()
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text("单位")
-                            AssistChip(onClick = { vm.toggleUnit() }, label = { Text(if (unit == com.example.fitness_demo.ui.viewmodel.SessionViewModel.UnitSystem.KG) "kg" else "lb") })
+                            AssistChip(
+                                onClick = {
+                                    val newUnit = if (unit == com.example.fitness_demo.ui.viewmodel.SessionViewModel.UnitSystem.KG) "lb" else "kg"
+                                    vm.toggleUnit()
+                                    SettingsStore.setDefaultWeightUnit(appContext, newUnit)
+                                },
+                                label = { Text(if (unit == com.example.fitness_demo.ui.viewmodel.SessionViewModel.UnitSystem.KG) "kg" else "lb") }
+                            )
                         }
                         // 最近使用重量
                         val recentW by vm.recentWeightsKg.collectAsState()
