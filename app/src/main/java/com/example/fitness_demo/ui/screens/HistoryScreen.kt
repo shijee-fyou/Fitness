@@ -148,45 +148,46 @@ fun HistoryScreen(
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
-        if (sessions.isEmpty()) {
-            Column(
+        if (!calendarMode) {
+            val listState = rememberLazyListState()
+            LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
-                    .padding(com.example.fitness_demo.ui.theme.Dimens.ScreenPadding)
+                    .padding(padding),
+                state = listState
             ) {
-                Text("暂无记录", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-        } else {
-            if (!calendarMode) {
-                val listState = rememberLazyListState()
-                LazyColumn(
-                    modifier = Modifier
+                stickyHeader {
+                    Column(modifier = Modifier
                         .fillMaxSize()
-                        .padding(padding),
-                    state = listState
-                ) {
-                    stickyHeader {
-                        Column(modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = Dimens.ScreenPadding, vertical = Dimens.ChipSpacing)) {
-                            OutlinedTextField(
-                                value = query.value,
-                                onValueChange = { query.value = it },
-                                label = { Text("搜索记录（时间/备注/主题）") },
-                                trailingIcon = {
-                                    if (query.value.isNotBlank()) {
-                                        Icon(
-                                            imageVector = Icons.Default.Close,
-                                            contentDescription = "清空",
-                                            modifier = Modifier.clickable { query.value = "" }
-                                        )
-                                    }
-                                },
-                                modifier = Modifier.fillMaxSize()
-                            )
+                        .padding(horizontal = Dimens.ScreenPadding, vertical = Dimens.ChipSpacing)) {
+                        OutlinedTextField(
+                            value = query.value,
+                            onValueChange = { query.value = it },
+                            label = { Text("搜索记录（时间/备注/主题）") },
+                            trailingIcon = {
+                                if (query.value.isNotBlank()) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "清空",
+                                        modifier = Modifier.clickable { query.value = "" }
+                                    )
+                                }
+                            },
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
+                }
+                if (filtered.isEmpty()) {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(Dimens.ScreenPadding)
+                        ) {
+                            Text("暂无记录", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
+                } else {
                     itemsIndexed(filtered, key = { _, s -> s.id }) { index, session ->
                         val dismissState = rememberSwipeToDismissBoxState(
                             confirmValueChange = { value ->
@@ -238,8 +239,9 @@ fun HistoryScreen(
                         }
                     }
                 }
-            } else {
-                // 日历视图
+            }
+        } else {
+            // 日历视图
                 val monthStart = currentMonth.atDay(1)
                 val daysInMonth = currentMonth.lengthOfMonth()
                 // 周一=1 … 周日=7，转为 0..6（周一在前）
@@ -584,7 +586,6 @@ fun HistoryScreen(
                         }
                     }
                 }
-            }
         }
     }
 }
