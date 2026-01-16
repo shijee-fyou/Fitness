@@ -18,8 +18,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -37,6 +40,9 @@ import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.Text
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.AssistChip
@@ -63,7 +69,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
@@ -95,6 +100,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
 
 private data class DaySummary(val sessionCount: Int, val totalVolumeKg: Float, val topGroups: List<String>)
+private data class TodaySummary(val sessionCount: Int, val setCount: Int, val totalVolumeKg: Float, val durationMin: Int)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun HistoryScreen(
@@ -116,30 +122,40 @@ fun HistoryScreen(
     var calendarMode by remember { mutableStateOf(true) }
     var currentMonth by remember { mutableStateOf(YearMonth.now()) }
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+    var todaySummary by remember { mutableStateOf(TodaySummary(0, 0, 0f, 0)) }
+    LaunchedEffect(sessions) {
+        val today = LocalDate.now()
+        val todaySessions = sessions.filter { s ->
+            Instant.ofEpochMilli(s.startTimeMillis).atZone(ZoneId.systemDefault()).toLocalDate() == today
+        }
+        var vol = 0f
+        var setCount = 0
+        var durationMin = 0
+        todaySessions.forEach { s ->
+            val sets = repository.getSetsForSessionOnce(s.id)
+            vol += sets.fold(0f) { acc, st -> acc + (st.weightKg ?: 0f) * st.reps }
+            setCount += sets.size
+            val end = s.endTimeMillis ?: System.currentTimeMillis()
+            durationMin += ((end - s.startTimeMillis) / 60000.0).toInt().coerceAtLeast(0)
+        }
+        todaySummary = TodaySummary(
+            sessionCount = todaySessions.size,
+            setCount = setCount,
+            totalVolumeKg = vol,
+            durationMin = durationMin
+        )
+    }
     Scaffold(
         topBar = {
-            LargeTopAppBar(
-                title = { Text("训练记录") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "返回"
-                        )
-                    }
-                },
-                actions = {
-                    TextButton(onClick = { calendarMode = !calendarMode }) {
-                        Text(if (calendarMode) "列表" else "日历")
-                    }
-                    IconButton(onClick = {
-                        scope.launch {
-                            val s = repository.startNewSession()
-                            haptics.performHapticFeedback(HapticFeedbackType.LongPress)
-                            onOpenSession(s.id)
-                        }
-                    }) {
-                        Icon(imageVector = Icons.Default.Add, contentDescription = "新建训练")
+            HistoryTopBar(
+                summary = todaySummary,
+                calendarMode = calendarMode,
+                onToggleMode = { calendarMode = !calendarMode },
+                onStartSession = {
+                    scope.launch {
+                        val s = repository.startNewSession()
+                        haptics.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onOpenSession(s.id)
                     }
                 },
                 scrollBehavior = scrollBehavior
@@ -277,12 +293,12 @@ fun HistoryScreen(
                 var daySheetOpen by remember { mutableStateOf(false) }
                 var sheetDate by remember { mutableStateOf<LocalDate?>(null) }
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .padding(horizontal = Dimens.ScreenPadding, vertical = Dimens.ChipSpacing)
-                ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = Dimens.ScreenPadding, vertical = Dimens.ChipSpacing)
+            ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -587,6 +603,75 @@ fun HistoryScreen(
                     }
                 }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun HistoryTopBar(
+    summary: TodaySummary,
+    calendarMode: Boolean,
+    onToggleMode: () -> Unit,
+    onStartSession: () -> Unit,
+    scrollBehavior: TopAppBarScrollBehavior
+) {
+    LargeTopAppBar(
+        title = { Text("训练记录") },
+        navigationIcon = {
+            TodaySummaryCard(summary = summary)
+        },
+        actions = {
+            TextButton(onClick = onToggleMode) {
+                Text(if (calendarMode) "列表" else "日历")
+            }
+            IconButton(onClick = onStartSession) {
+                Icon(imageVector = Icons.Default.Add, contentDescription = "新建训练")
+            }
+        },
+        scrollBehavior = scrollBehavior
+    )
+}
+
+@Composable
+private fun TodaySummaryCard(summary: TodaySummary) {
+    ElevatedCard(
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = Dimens.CardElevationLow),
+        colors = CardDefaults.elevatedCardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier
+            .padding(start = 12.dp)
+            .widthIn(min = 220.dp, max = 260.dp)
+            .heightIn(min = 64.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text("今日训练", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSecondaryContainer)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                SummaryChip(text = "次数 ${summary.sessionCount}")
+                SummaryChip(text = "组数 ${summary.setCount}")
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                SummaryChip(text = "时长 ${summary.durationMin}分钟")
+                SummaryChip(text = "容量 ${"%.0f".format(summary.totalVolumeKg)}")
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryChip(text: String) {
+    androidx.compose.material3.Surface(
+        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.12f),
+        contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp)
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+        )
     }
 }
 

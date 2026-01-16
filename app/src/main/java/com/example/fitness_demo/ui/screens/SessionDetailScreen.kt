@@ -123,6 +123,7 @@ import com.example.fitness_demo.ui.components.GradientPrimaryButton
 import androidx.compose.ui.unit.sp
 
 import com.example.fitness_demo.ui.theme.Dimens
+import com.example.fitness_demo.data.SettingsStore
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class, ExperimentalMaterialApi::class)
 @Composable
@@ -140,6 +141,8 @@ fun SessionDetailScreen(
     val haptics = LocalHapticFeedback.current
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior()
     val restSeconds by vm.restSeconds.collectAsState()
+    val context = LocalContext.current
+    val defaultRestSeconds = SettingsStore.getDefaultRestSeconds(context)
     var pickerOpen by remember { mutableStateOf(false) } // exercise picker
     var query by remember { mutableStateOf("") }
     var selectedGroup by remember { mutableStateOf<String?>(null) }
@@ -203,17 +206,9 @@ fun SessionDetailScreen(
                 Spacer(modifier = Modifier.height(islandSpacer))
             // 顶部休息区域已移除，统一放到“灵动岛”中
 
-            val currentName = exercises.firstOrNull { it.id == selectedExerciseId }?.name?.let { Localization.exercise(it) } ?: "选择训练"
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(currentName)
-                TextButton(onClick = { pickerOpen = true }) { Text("选择") }
-            }
+            val recentExerciseId = sets.maxByOrNull { it.setNumber }?.exerciseId
+            val effectiveExerciseId = selectedExerciseId ?: recentExerciseId
+            val currentName = exercises.firstOrNull { it.id == effectiveExerciseId }?.name?.let { Localization.exercise(it) } ?: "暂无动作"
             // Hero 渐变区块：强化主次层次
             ElevatedCard(
                 elevation = CardDefaults.elevatedCardElevation(defaultElevation = Dimens.CardElevationMed),
@@ -235,9 +230,24 @@ fun SessionDetailScreen(
                         )
                         .padding(Dimens.CardPadding)
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text("最近动作", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(currentName, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(start = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text("最近动作", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(currentName, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+                        }
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            horizontalAlignment = Alignment.End
+                        ) {
+                            TextButton(onClick = { addSheetOpen = true }) { Text("新增一组") }
+                        }
                     }
                 }
             }
@@ -327,18 +337,7 @@ fun SessionDetailScreen(
 
             // 移除常驻设置卡片，改为“新增时弹出”
             // 复制上一组操作（已移除常驻“训练填充”，改为面板内提供）
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 8.dp),
-                horizontalArrangement = Arrangement.End,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                FilledTonalButton(
-                    onClick = { addSheetOpen = true },
-                    enabled = selectedExerciseId != null
-                ) { Text("新增一组") }
-            }
+            // 新增入口已并入“最近动作”卡片中
 
             // 次数选择器底部弹层
             if (repsPickerOpen) {
@@ -387,10 +386,26 @@ fun SessionDetailScreen(
 
             // 新增一组：设置面板弹层
             if (addSheetOpen) {
+                LaunchedEffect(addSheetOpen, selectedExerciseId, recentExerciseId) {
+                    if (addSheetOpen && selectedExerciseId == null && recentExerciseId != null) {
+                        vm.selectExercise(recentExerciseId)
+                    }
+                }
                 val addSheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
                 ModalBottomSheet(onDismissRequest = { addSheetOpen = false }, sheetState = addSheet, tonalElevation = Dimens.SheetElevation) {
                     Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         Text("本组设置", style = MaterialTheme.typography.titleMedium)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                Text("当前动作", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(currentName, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
+                            }
+                            TextButton(onClick = { pickerOpen = true }) { Text("选择动作") }
+                        }
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                             AssistChip(onClick = {
                                 vm.presetFromLastOfSelectedExercise()
@@ -722,7 +737,7 @@ fun SessionDetailScreen(
                             }
                             Spacer(modifier = Modifier.size(10.dp))
                             FilledTonalButton(
-                                onClick = { vm.completePendingSetAndStartRest(60) },
+                                onClick = { vm.completePendingSetAndStartRest(defaultRestSeconds) },
                                 shape = RoundedCornerShape(18.dp),
                                 colors = ButtonDefaults.filledTonalButtonColors(
                                     containerColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.18f),
@@ -739,7 +754,7 @@ fun SessionDetailScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(0.dp)
-                                    .clickable { vm.completePendingSetAndStartRest(60) }
+                                    .clickable { vm.completePendingSetAndStartRest(defaultRestSeconds) }
                             )
                         }
                     }
